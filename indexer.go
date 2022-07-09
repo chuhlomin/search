@@ -1,6 +1,7 @@
 package search
 
 import (
+	"log"
 	"reflect"
 
 	bleve "github.com/blevesearch/bleve/v2"
@@ -15,6 +16,10 @@ type Indexer struct {
 
 	documemtMappings map[string]*mapping.DocumentMapping
 	textAnalizers    map[string]*mapping.FieldMapping
+}
+
+type Language interface {
+	Language() string
 }
 
 func NewIndexer(indexPath string) (*Indexer, error) {
@@ -38,7 +43,7 @@ func (i *Indexer) RegisterType(structType interface{}) error {
 		return nil
 	}
 
-	docMapping := i.getDocumentMapping(structType)
+	docMapping := i.getDocumentMapping(structType, "en")
 
 	i.indexMapping.AddDocumentMapping(docType, docMapping)
 	i.documemtMappings[docType] = docMapping
@@ -74,36 +79,58 @@ func (i *Indexer) getDocumentType(structType interface{}) (string, error) {
 	return classifier.Type(), nil
 }
 
-func (i *Indexer) getDocumentMapping(structType interface{}) *mapping.DocumentMapping {
+func (i *Indexer) getDocumentLanguage(structType interface{}, defaultLang string) string {
+	lang, ok := structType.(Language)
+	if !ok {
+		return defaultLang
+	}
+
+	return lang.Language()
+}
+
+func (i *Indexer) getDocumentMapping(structType interface{}, defaultLang string) *mapping.DocumentMapping {
 	docMapping := mapping.NewDocumentMapping()
+	lang := i.getDocumentLanguage(structType, defaultLang)
 
 	reflectType := reflect.TypeOf(structType)
-	for i := 0; i < reflectType.NumField(); i++ {
-		field := reflectType.Field(i)
-		intexerTag := field.Tag.Get("indexer")
-		if intexerTag == "" {
-			continue
-		}
+	for f := 0; f < reflectType.NumField(); f++ {
+		field := reflectType.Field(f)
 
-		switch intexerTag {
-		case "text":
-			textFieldMapping := mapping.NewTextFieldMapping()
-			docMapping.AddFieldMappingsAt(field.Name, textFieldMapping)
+		switch field.Type.Kind() {
+		case reflect.String:
+			log.Printf("field: %s", field.Name)
 
-		case "date":
-			dateFieldMapping := mapping.NewDateTimeFieldMapping()
-			docMapping.AddFieldMappingsAt(field.Name, dateFieldMapping)
+			intexerTag := field.Tag.Get("indexer")
+			if intexerTag == "" {
+				continue
+			}
 
-		case "no_index":
-			noIndexFieldMapping := mapping.NewTextFieldMapping()
-			noIndexFieldMapping.Index = false
-			docMapping.AddFieldMappingsAt(field.Name, noIndexFieldMapping)
+			switch intexerTag {
+			case "text":
+				textFieldMapping := mapping.NewTextFieldMapping()
+				textFieldMapping.Analyzer = lang
+				docMapping.AddFieldMappingsAt(field.Name, textFieldMapping)
 
-		case "no_store":
-			noStoreFieldMapping := mapping.NewTextFieldMapping()
-			noStoreFieldMapping.Index = false
-			noStoreFieldMapping.Store = false
-			docMapping.AddFieldMappingsAt(field.Name, noStoreFieldMapping)
+			case "date":
+				dateFieldMapping := mapping.NewDateTimeFieldMapping()
+				docMapping.AddFieldMappingsAt(field.Name, dateFieldMapping)
+
+			case "no_index":
+				noIndexFieldMapping := mapping.NewTextFieldMapping()
+				noIndexFieldMapping.Index = false
+				docMapping.AddFieldMappingsAt(field.Name, noIndexFieldMapping)
+
+			case "no_store":
+				noStoreFieldMapping := mapping.NewTextFieldMapping()
+				noStoreFieldMapping.Index = false
+				noStoreFieldMapping.Store = false
+				docMapping.AddFieldMappingsAt(field.Name, noStoreFieldMapping)
+			}
+
+		case reflect.Struct:
+			// recursion for nested structs
+			fieldValue := reflect.ValueOf(structType).FieldByName(field.Name).Interface()
+			docMapping.AddSubDocumentMapping(field.Name, i.getDocumentMapping(fieldValue, lang))
 		}
 	}
 

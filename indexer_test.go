@@ -42,10 +42,15 @@ func TestIndexerSimple(t *testing.T) {
 	indexer, err := NewIndexer(path)
 	require.NoError(t, err, "failed to create indexer")
 
-	indexer.RegisterType(simple{})
+	err = indexer.RegisterType(simple{})
+	require.NoError(t, err, "failed to register type")
 
-	indexer.Index("alice", simple{Text: "Ping"})
-	indexer.Index("bob", simple{Text: "Pong"})
+	err = indexer.Index("alice", simple{Text: "Ping"})
+	require.NoError(t, err, "failed to index")
+
+	err = indexer.Index("bob", simple{Text: "Pong"})
+	require.NoError(t, err, "failed to index")
+
 	err = indexer.Close()
 	require.NoError(t, err, "failed to close indexer")
 
@@ -104,4 +109,59 @@ func TestIndexerTags(t *testing.T) {
 	require.Equal(t, []string{}, searchText(index, "pass", t))
 	require.Equal(t, []string{"one"}, searchDate(index, time.Date(2006, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2006, 1, 3, 0, 0, 0, 0, time.UTC), t))
 	require.Equal(t, []string{}, searchDate(index, time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2010, 1, 3, 0, 0, 0, 0, time.UTC), t))
+}
+
+type nested struct {
+	Text string `indexer:"text"`
+	Meta struct {
+		Label string `indexer:"text"`
+	}
+	Data data
+}
+
+type data struct {
+	Kicker string `indexer:"text"`
+}
+
+func (n nested) Type() string {
+	return "nested"
+}
+
+func (n nested) Language() string {
+	return "en"
+}
+
+func TestIndexerNested(t *testing.T) {
+	path := "ignore/nested"
+	os.RemoveAll(path)
+
+	indexer, err := NewIndexer(path)
+	if err != nil {
+		t.Fatal(err, "failed to create indexer")
+	}
+
+	err = indexer.RegisterType(nested{})
+	require.NoError(t, err, "failed to register type")
+
+	err = indexer.Index(
+		"one",
+		nested{
+			Text: "Cats",
+			Meta: struct {
+				Label string `indexer:"text"`
+			}{Label: "chatting"},
+			Data: data{Kicker: "Kicking"},
+		},
+	)
+	require.NoError(t, err, "failed to index")
+
+	err = indexer.Close()
+	require.NoError(t, err, "failed to close indexer")
+
+	index, err := bleve.Open(path)
+	require.NoError(t, err, "failed to open index")
+
+	require.Equal(t, []string{"one"}, searchText(index, "cat", t), "failed to search for cat")
+	require.Equal(t, []string{"one"}, searchText(index, "chat", t), "failed to search for chat")
+	require.Equal(t, []string{"one"}, searchText(index, "kick", t), "failed to search for kick")
 }
