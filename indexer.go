@@ -1,10 +1,40 @@
 package search
 
 import (
-	"log"
 	"reflect"
 
 	bleve "github.com/blevesearch/bleve/v2"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/ar"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/bg"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/ca"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/cjk"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/ckb"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/cs"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/da"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/de"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/el"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/en"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/es"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/eu"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/fa"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/fi"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/fr"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/ga"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/gl"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/hi"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/hr"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/hu"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/hy"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/id"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/in"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/it"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/nl"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/no"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/pt"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/ro"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/ru"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/sv"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/tr"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/pkg/errors"
 )
@@ -33,17 +63,14 @@ func NewIndexer(indexPath string) (*Indexer, error) {
 	}, nil
 }
 
-func (i *Indexer) RegisterType(structType interface{}) error {
-	docType, err := i.getDocumentType(structType)
-	if err != nil {
-		return errors.Wrap(err, "failed to get document type")
-	}
+func (i *Indexer) RegisterType(structType interface{}, lang string) error {
+	docType := i.getDocumentType(structType)
 
 	if _, ok := i.documemtMappings[docType]; ok {
 		return nil
 	}
 
-	docMapping := i.getDocumentMapping(structType, "en")
+	docMapping := i.getDocumentMapping(structType, lang)
 
 	i.indexMapping.AddDocumentMapping(docType, docMapping)
 	i.documemtMappings[docType] = docMapping
@@ -70,13 +97,14 @@ func (i *Indexer) Close() error {
 	return nil
 }
 
-func (i *Indexer) getDocumentType(structType interface{}) (string, error) {
+func (i *Indexer) getDocumentType(structType interface{}) string {
 	classifier, ok := structType.(mapping.Classifier)
 	if !ok {
-		return "", errors.New("structType does not implement bleve.Classifier")
+		reflectType := reflect.TypeOf(structType)
+		return reflectType.Name()
 	}
 
-	return classifier.Type(), nil
+	return classifier.Type()
 }
 
 func (i *Indexer) getDocumentLanguage(structType interface{}, defaultLang string) string {
@@ -85,7 +113,11 @@ func (i *Indexer) getDocumentLanguage(structType interface{}, defaultLang string
 		return defaultLang
 	}
 
-	return lang.Language()
+	result := lang.Language()
+	if result == "" {
+		return defaultLang
+	}
+	return result
 }
 
 func (i *Indexer) getDocumentMapping(structType interface{}, defaultLang string) *mapping.DocumentMapping {
@@ -98,8 +130,6 @@ func (i *Indexer) getDocumentMapping(structType interface{}, defaultLang string)
 
 		switch field.Type.Kind() {
 		case reflect.String:
-			log.Printf("field: %s", field.Name)
-
 			intexerTag := field.Tag.Get("indexer")
 			if intexerTag == "" {
 				continue

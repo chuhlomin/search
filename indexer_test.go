@@ -42,7 +42,7 @@ func TestIndexerSimple(t *testing.T) {
 	indexer, err := NewIndexer(path)
 	require.NoError(t, err, "failed to create indexer")
 
-	err = indexer.RegisterType(simple{})
+	err = indexer.RegisterType(simple{}, "en")
 	require.NoError(t, err, "failed to register type")
 
 	err = indexer.Index("alice", simple{Text: "Ping"})
@@ -88,11 +88,9 @@ func TestIndexerTags(t *testing.T) {
 	os.RemoveAll(path)
 
 	indexer, err := NewIndexer(path)
-	if err != nil {
-		t.Fatal(err, "failed to create indexer")
-	}
+	require.NoError(t, err, "failed to create indexer")
 
-	err = indexer.RegisterType(tags{})
+	err = indexer.RegisterType(tags{}, "en")
 	require.NoError(t, err, "failed to register type")
 
 	err = indexer.Index("one", tags{Text: "Ping", Date: "2006-01-02", Temp: "temp", Pass: "pass"})
@@ -136,11 +134,9 @@ func TestIndexerNested(t *testing.T) {
 	os.RemoveAll(path)
 
 	indexer, err := NewIndexer(path)
-	if err != nil {
-		t.Fatal(err, "failed to create indexer")
-	}
+	require.NoError(t, err, "failed to create indexer")
 
-	err = indexer.RegisterType(nested{})
+	err = indexer.RegisterType(nested{}, "en")
 	require.NoError(t, err, "failed to register type")
 
 	err = indexer.Index(
@@ -164,4 +160,51 @@ func TestIndexerNested(t *testing.T) {
 	require.Equal(t, []string{"one"}, searchText(index, "cat", t), "failed to search for cat")
 	require.Equal(t, []string{"one"}, searchText(index, "chat", t), "failed to search for chat")
 	require.Equal(t, []string{"one"}, searchText(index, "kick", t), "failed to search for kick")
+}
+
+type post struct {
+	Title string `indexer:"text"`
+	Lang  string
+}
+
+func (p post) Type() string {
+	suffix := ""
+	if p.Lang != "" {
+		suffix = "_" + p.Lang
+	}
+
+	return "post" + suffix
+}
+
+func (p post) Language() string {
+	return p.Lang
+}
+
+func TestIndexerMultilang(t *testing.T) {
+	path := "ignore/multilang"
+	os.RemoveAll(path)
+
+	indexer, err := NewIndexer(path)
+	require.NoError(t, err, "failed to create indexer")
+
+	err = indexer.RegisterType(post{Lang: "en"}, "en")
+	require.NoError(t, err, "failed to register type")
+
+	err = indexer.RegisterType(post{Lang: "ru"}, "ru")
+	require.NoError(t, err, "failed to register type")
+
+	err = indexer.Index("search", post{Title: "Searching", Lang: "en"})
+	require.NoError(t, err, "failed to index")
+
+	err = indexer.Index("search_ru", post{Title: "результаты", Lang: "ru"})
+	require.NoError(t, err, "failed to index")
+
+	err = indexer.Close()
+	require.NoError(t, err, "failed to close indexer")
+
+	index, err := bleve.Open(path)
+	require.NoError(t, err, "failed to open index")
+
+	require.Equal(t, []string{"search"}, searchText(index, "search", t))
+	require.Equal(t, []string{"search_ru"}, searchText(index, "результат", t))
 }
