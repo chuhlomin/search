@@ -68,7 +68,10 @@ func NewIndexer(indexPath, buildDir string) (*Indexer, error) {
 
 func (i *Indexer) Close() error {
 	if i.builder != nil {
-		return i.builder.Close()
+		err := i.builder.Close()
+		if err != nil {
+			return errors.Wrap(err, "failed to close builder")
+		}
 	}
 
 	if i.buildDir != "" {
