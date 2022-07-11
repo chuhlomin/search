@@ -1,7 +1,9 @@
 package search
 
 import (
+	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	bleve "github.com/blevesearch/bleve/v2"
@@ -74,14 +76,14 @@ func (i *Indexer) Close() error {
 		}
 	}
 
-	err := os.Chmod(i.indexPath, 0755)
+	// Need to recursively update permissions on the index directory. Here is why:
+	// i.builder.Close will move the index from `buildDir` to `indexPath`.
+	// `indexPath` will have 700 permissions.
+	// It leads to the problem when `Indexer` is used by the app that runs inside
+	// a container in GitHub Actions: index dir cannot be copied into another container.
+	err := fixPermissions(i.indexPath, 0755, 0644)
 	if err != nil {
-		return errors.Wrap(err, "failed to chmod index dir")
-	}
-
-	err = os.Chmod(i.indexPath+"/store", 0755)
-	if err != nil {
-		return errors.Wrap(err, "failed to chmod index dir /store")
+		return errors.Wrap(err, "failed to fix permissions")
 	}
 
 	if i.buildDir != "" {
@@ -208,4 +210,16 @@ func (i *Indexer) getDocumentMapping(structType interface{}, defaultLang string)
 	}
 
 	return docMapping
+}
+
+func fixPermissions(path string, dirmode, filemode fs.FileMode) error {
+	return filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return os.Chmod(path, dirmode)
+		}
+		return os.Chmod(path, filemode)
+	})
 }
