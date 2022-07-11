@@ -81,7 +81,10 @@ func (i *Indexer) RegisterType(structType interface{}, lang string) error {
 func (i *Indexer) Index(id string, data interface{}) error {
 	if i.builder == nil {
 		var err error
-		i.builder, err = bleve.NewBuilder(i.indexPath, i.indexMapping, nil)
+		config := map[string]interface{}{
+			"buildPathPrefix": i.indexPath + "_temp",
+		}
+		i.builder, err = bleve.NewBuilder(i.indexPath, i.indexMapping, config)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create %s", i.indexPath)
 		}
