@@ -39,7 +39,7 @@ func TestIndexerSimple(t *testing.T) {
 	path := "ignore/simple"
 	os.RemoveAll(path)
 
-	indexer, err := NewIndexer(path)
+	indexer, err := NewIndexer(path, "")
 	require.NoError(t, err, "failed to create indexer")
 
 	err = indexer.RegisterType(simple{}, "en")
@@ -87,7 +87,7 @@ func TestIndexerTags(t *testing.T) {
 	path := "ignore/tags"
 	os.RemoveAll(path)
 
-	indexer, err := NewIndexer(path)
+	indexer, err := NewIndexer(path, "")
 	require.NoError(t, err, "failed to create indexer")
 
 	err = indexer.RegisterType(tags{}, "en")
@@ -133,7 +133,7 @@ func TestIndexerNested(t *testing.T) {
 	path := "ignore/nested"
 	os.RemoveAll(path)
 
-	indexer, err := NewIndexer(path)
+	indexer, err := NewIndexer(path, "")
 	require.NoError(t, err, "failed to create indexer")
 
 	err = indexer.RegisterType(nested{}, "en")
@@ -184,7 +184,7 @@ func TestIndexerMultilang(t *testing.T) {
 	path := "ignore/multilang"
 	os.RemoveAll(path)
 
-	indexer, err := NewIndexer(path)
+	indexer, err := NewIndexer(path, "")
 	require.NoError(t, err, "failed to create indexer")
 
 	err = indexer.RegisterType(post{Lang: "en"}, "en")

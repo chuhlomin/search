@@ -1,6 +1,7 @@
 package search
 
 import (
+	"os"
 	"reflect"
 
 	bleve "github.com/blevesearch/bleve/v2"
@@ -42,6 +43,7 @@ import (
 type Indexer struct {
 	indexMapping *mapping.IndexMappingImpl
 	indexPath    string
+	buildDir     string
 	builder      bleve.Builder
 
 	documemtMappings map[string]*mapping.DocumentMapping
@@ -52,15 +54,31 @@ type Language interface {
 	Language() string
 }
 
-func NewIndexer(indexPath string) (*Indexer, error) {
+func NewIndexer(indexPath, buildDir string) (*Indexer, error) {
 	indexMapping := bleve.NewIndexMapping()
 
 	return &Indexer{
 		indexMapping:     indexMapping,
 		indexPath:        indexPath,
+		buildDir:         buildDir,
 		documemtMappings: map[string]*mapping.DocumentMapping{},
 		textAnalizers:    map[string]*mapping.FieldMapping{},
 	}, nil
+}
+
+func (i *Indexer) Close() error {
+	if i.builder != nil {
+		return i.builder.Close()
+	}
+
+	if i.buildDir != "" {
+		err := os.RemoveAll(i.buildDir)
+		if err != nil {
+			return errors.Wrapf(err, "failed to remove build dir %s", i.buildDir)
+		}
+	}
+
+	return nil
 }
 
 func (i *Indexer) RegisterType(structType interface{}, lang string) error {
@@ -80,22 +98,31 @@ func (i *Indexer) RegisterType(structType interface{}, lang string) error {
 
 func (i *Indexer) Index(id string, data interface{}) error {
 	if i.builder == nil {
-		var err error
-		config := map[string]interface{}{
-			"buildPathPrefix": i.indexPath + "_temp",
-		}
-		i.builder, err = bleve.NewBuilder(i.indexPath, i.indexMapping, config)
+		err := i.init()
 		if err != nil {
-			return errors.Wrapf(err, "failed to create %s", i.indexPath)
+			return err
 		}
 	}
 
 	return i.builder.Index(id, data)
 }
 
-func (i *Indexer) Close() error {
-	if i.builder != nil {
-		return i.builder.Close()
+func (i *Indexer) init() error {
+	if i.buildDir != "" {
+		err := os.MkdirAll(i.buildDir, 0755)
+		if err != nil {
+			return errors.Wrap(err, "failed to create build dir")
+		}
+	}
+
+	config := map[string]interface{}{
+		"buildPathPrefix": i.buildDir,
+	}
+
+	var err error
+	i.builder, err = bleve.NewBuilder(i.indexPath, i.indexMapping, config)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create %s", i.indexPath)
 	}
 	return nil
 }
