@@ -74,6 +74,11 @@ func (i *Indexer) Close() error {
 		}
 	}
 
+	err := os.Chmod(i.indexPath, 0755)
+	if err != nil {
+		return errors.Wrap(err, "failed to chmod index dir")
+	}
+
 	if i.buildDir != "" {
 		err := os.RemoveAll(i.buildDir)
 		if err != nil {
