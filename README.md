@@ -29,6 +29,36 @@ Register types to index with `RegisterType`:
 err := indexer.RegisterType(someStruct{}, "en")
 ```
 
+Struct may implement bleve's `mapping.Classifier` interface to specify a type name.
+Otherwise, struct name will be used as type name.
+
+```go
+type Classifier interface {
+	Type() string
+}
+```
+
+Also, structs may implement `Lanuguage` interface to specify language
+for all text fields in the struct.
+Otherwise, the default language will be used (passed to `RegisterType`).
+
+```go
+type Language interface {
+	Language() string
+}
+```
+
+Use struct tags to define a special behaviour:
+
+```go
+type someStruct struct {
+	SomeField string `indexer:"text"`
+	Date      string `indexer:"date"`
+	Password  string `indexer:"no_store"`
+	Blob      string `indexer:"no_index"`
+}
+```
+
 Index documents with `Index`:
 
 ```go
