@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  DOCKER_IMAGE: ghcr.io/chuhlomin/search
+  DOCKER_IMAGE: chuhlomin/search
 
 jobs:
   main:
@@ -15,16 +15,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
         with:
           go-version: '^1.18'
+
+      - name: Run tests
+        run: |
+          go vet ./...
+          go test -v -cover ./...
 
       - name: Build and push to CR
         uses: chuhlomin/actions/docker-build-push@main
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.PKG_TOKEN }}
+          username: chuhlomin
+          password: ${{ secrets.DOCKER_PASSWORD }}
           image_name: ${{ env.DOCKER_IMAGE }}
           tags: |
             ${{ env.DOCKER_IMAGE }}:${{ github.sha }}

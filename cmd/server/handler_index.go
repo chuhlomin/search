@@ -82,7 +82,7 @@ func parseFields(body []byte) ([]string, error) {
 	// parse arbitrary json
 	var document map[string]interface{}
 	if err := json.Unmarshal(body, &document); err != nil {
-		log.Println(err)
+		log.Printf("Error parsing json: %v", err)
 		return nil, errors.Wrap(err, "error parsing request body")
 	}
 

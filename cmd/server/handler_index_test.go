@@ -9,22 +9,27 @@ import (
 
 func TestParseFields(t *testing.T) {
 	tt := []struct {
+		name string
 		body string
 		want []string
 	}{
 		{
+			name: "empty",
 			body: ``,
 			want: nil,
 		},
 		{
+			name: "simple",
 			body: `{"field": true}`,
 			want: []string{"field"},
 		},
 		{
+			name: "values are ignored",
 			body: `{"field": true, "other": false}`,
 			want: []string{"field", "other"},
 		},
 		{
+			name: "nested",
 			body: `{
 				"field": true,
 				"other": {
@@ -34,6 +39,7 @@ func TestParseFields(t *testing.T) {
 			want: []string{"field", "other.field"},
 		},
 		{
+			name: "deeply nested",
 			body: `{
 				"field": true,
 				"other": {
@@ -48,7 +54,7 @@ func TestParseFields(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.body, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			got, err := parseFields([]byte(tc.body))
 			sort.Strings(got)
 			require.NoError(t, err)
@@ -84,7 +90,7 @@ func TestBuildDocument(t *testing.T) {
 			},
 		},
 		{
-			name: "nested",
+			name: "deeply nested",
 			fields: map[string]interface{}{
 				"path":                 "url",
 				"metadata.title":       "Title",
