@@ -9,14 +9,15 @@ import (
 	"strings"
 
 	bleve "github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 	"github.com/pkg/errors"
 )
 
 type response struct {
-	ID        string      `json:"id"`
-	Score     float64     `json:"score"`
-	Fragments []fragment  `json:"fragments"`
-	Document  interface{} `json:"document,omitempty"`
+	ID        string                  `json:"id"`
+	Score     float64                 `json:"score"`
+	Fragments search.FieldFragmentMap `json:"fragments"`
+	Document  interface{}             `json:"document,omitempty"`
 }
 
 type fragment struct {
@@ -121,28 +122,10 @@ func extractFields(field string, value interface{}) []string {
 func formatResponse(searchResults *bleve.SearchResult) []response {
 	var resp []response
 	for _, hit := range searchResults.Hits {
-		var fragments []fragment
-		for field, termLocations := range hit.Locations {
-			fragment := fragment{
-				Field:     field,
-				Locations: map[string][]location{},
-			}
-			for term, locations := range termLocations {
-				fragment.Locations[term] = []location{}
-				for _, loc := range locations {
-					fragment.Locations[term] = append(fragment.Locations[term], location{
-						Start: loc.Start,
-						End:   loc.End,
-					})
-				}
-			}
-			fragments = append(fragments, fragment)
-		}
-
 		resp = append(resp, response{
 			ID:        hit.ID,
 			Score:     hit.Score,
-			Fragments: fragments,
+			Fragments: hit.Fragments,
 			Document:  buildDocument(hit.Fields),
 		})
 	}
