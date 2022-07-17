@@ -33,6 +33,17 @@ type location struct {
 func (s *server) handleIndex() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		queryString := r.URL.Query().Get("q")
+		lang := r.URL.Query().Get("lang")
+
+		if lang == "" {
+			lang = s.defaultLanguage
+		}
+		analyser, err := s.cache.AnalyzerNamed(lang)
+		if err != nil {
+			log.Printf("Error getting analyzer: %v", err)
+			http.Error(w, "error getting analyzer", http.StatusInternalServerError)
+			return
+		}
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -46,6 +57,12 @@ func (s *server) handleIndex() http.HandlerFunc {
 			log.Printf("Error parsing fields: %v", err)
 			http.Error(w, "error parsing request body: "+err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		ts := analyser.Analyze([]byte(queryString))
+		queryString = ""
+		for _, token := range ts {
+			queryString += fmt.Sprintf("%s ", token.Term)
 		}
 
 		query := bleve.NewMatchQuery(queryString)

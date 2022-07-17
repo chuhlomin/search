@@ -37,6 +37,7 @@ import (
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/ru"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/sv"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/tr"
+	"github.com/blevesearch/bleve/v2/registry"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -44,8 +45,9 @@ import (
 )
 
 type config struct {
-	Bind      string `env:"BIND" envDefault:"127.0.0.1:8081"`
-	IndexPath string `env:"INDEX_PATH,required"`
+	Bind            string `env:"BIND" envDefault:"127.0.0.1:8081"`
+	IndexPath       string `env:"INDEX_PATH,required"`
+	DefaultLanguage string `env:"DEFAULT_LANGUAGE" envDefault:"en"`
 }
 
 func main() {
@@ -73,8 +75,10 @@ func run() error {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	srv := server{
-		router: r,
-		index:  index,
+		router:          r,
+		index:           index,
+		defaultLanguage: cfg.DefaultLanguage,
+		cache:           registry.NewCache(),
 	}
 	srv.routes()
 

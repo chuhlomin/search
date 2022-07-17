@@ -5,12 +5,15 @@ import (
 	"net/http"
 
 	bleve "github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/registry"
 	"github.com/go-chi/chi/v5"
 )
 
 type server struct {
-	router chi.Router
-	index  bleve.Index
+	router          chi.Router
+	index           bleve.Index
+	defaultLanguage string
+	cache           *registry.Cache
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
