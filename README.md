@@ -2,6 +2,7 @@
 
 [![main](https://github.com/chuhlomin/search/actions/workflows/main.yml/badge.svg)](https://github.com/chuhlomin/search/actions/workflows/main.yml)
 [![release](https://github.com/chuhlomin/search/actions/workflows/release.yml/badge.svg)](https://github.com/chuhlomin/search/actions/workflows/release.yml)
+[![Dockerhub](https://img.shields.io/badge/docker-hub-4988CC)](https://hub.docker.com/repository/docker/chuhlomin/search)
 
 `search` is a project to provide a simple search engine,
 built on top of the [bleve](https://github.com/blevesearch/bleve) Go library.
@@ -80,7 +81,7 @@ version: "3.9"
 
 services:
   search:
-    image: chuhlomin/search:v0.1.0
+    image: chuhlomin/search:v0.1.2
     ports:
     - 127.0.0.1:8081:80
     environment:
@@ -104,19 +105,9 @@ Result will be a JSON array of documents:
         "id": "id",
         "score": 1.0,
         "fragments": {
-            "field": "SomeField",
-            "locations": {
-                "needle": [
-                    {
-                        "start": 0,
-                        "end": 6
-                    },
-                    {
-                        "start": 10,
-                        "end": 16
-                    }
-                ]
-            }
+            "SomeField": [
+                "<mark>needle</mark> & <mark>needle</mark>"
+            ]
         },
         "document": {}
     }
@@ -140,19 +131,9 @@ curl -X "POST" "http://127.0.0.1:8081/?q=needle" \
         "id": "id",
         "score": 1.0,
         "fragments": {
-            "field": "SomeField",
-            "locations": {
-                "needle": [
-                    {
-                        "start": 0,
-                        "end": 6
-                    },
-                    {
-                        "start": 10,
-                        "end": 16
-                    }
-                ]
-            }
+            "SomeField": [
+                "<mark>needle</mark> & <mark>needle</mark>"
+            ]
         },
         "document": {
             "SomeField": "needle & needle"
